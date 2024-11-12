@@ -1,0 +1,178 @@
+#include <iostream>
+#include <fstream>
+#include <unordered_map>
+#include <regex>
+#include <string>
+#include <ctime>
+#include <cstdlib>
+#include <vector>
+
+// Класс для загрузки и работы с словарем
+class Dictionary {
+public:
+    Dictionary(const std::string& filePath) {
+        load(filePath);
+    }
+
+    // Загружаем словарь из файла
+    void load(const std::string& filePath) {
+        std::ifstream file(filePath);
+
+        if (!file.is_open()) {
+            std::cerr << "Ошибка открытия файла!" << std::endl;
+            exit(1);
+        }
+
+        const std::regex pattern(R"((\S+)\s*:\s*(.*)\s*\.)");
+        std::string line;
+
+        while (std::getline(file, line)) {
+            std::smatch match;
+            if (std::regex_search(line, match, pattern)) {
+                dictionary[match[1].str()] = match[2].str();
+            }
+        }
+
+        file.close();
+    }
+
+    // Получить случайное слово и его описание
+    std::pair<std::string, std::string> getRandomWord() {
+        auto it = dictionary.begin();
+        std::advance(it, rand() % dictionary.size());
+        return *it;
+    }
+
+private:
+    std::unordered_map<std::string, std::string> dictionary;
+};
+
+// Класс для представления слова и его проверки
+class Word {
+public:
+    Word(const std::string& word) : word(word) {}
+
+    // Проверяет, угадана ли буква
+    bool isLetterGuessed(char letter) {
+        return guessedLetters.find(letter) != std::string::npos;
+    }
+
+    // Добавить угаданную букву
+    void guessLetter(char letter) {
+        guessedLetters += letter;
+    }
+
+    // Отобразить текущее состояние слова с учетом угаданных букв
+    void display(const std::string& guessedLetters) const {
+        for (char ch : word) {
+            if (isLetterGuessed(ch)) {
+                std::cout << ch;
+            } else {
+                std::cout << "*";
+            }
+        }
+        std::cout << std::endl;
+    }
+
+    // Проверить, отгадано ли слово
+    bool isGuessed() const {
+        for (char ch : word) {
+            if (!isLetterGuessed(ch)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    std::string word;
+    std::string guessedLetters;  // Строка угаданных букв
+};
+
+// Класс для игры
+class Game {
+public:
+    Game(Dictionary& dictionary) : dictionary(dictionary) {
+        srand(time(0));  // Инициализация генератора случайных чисел
+    }
+
+    // Начать игру
+    void start() {
+        bool playAgain = true;
+
+        while (playAgain) {
+            // Получаем случайное слово и его описание
+            auto wordPair = dictionary.getRandomWord();
+            std::string word = wordPair.first;
+            std::string description = wordPair.second;
+
+            Word currentWord(word);
+
+            std::cout << "Описание: " << description << std::endl;
+
+            // Игровой процесс
+            playRound(currentWord);
+
+            // Спрашиваем, хочет ли игрок продолжить игру
+            char continueGame;
+            std::cout << "Хотите продолжить игру? (y/n): ";
+            std::cin >> continueGame;
+            if (tolower(continueGame) != 'y') {
+                playAgain = false;
+            }
+        }
+    }
+
+private:
+    // Игровой процесс одного раунда
+    void playRound(Word& currentWord) {
+        int attempts = 0;
+        bool wordGuessed = false;
+
+        while (!wordGuessed) {
+            std::cout << "Отгадай слово: ";
+            currentWord.display(currentWord.getGuessedLetters());
+
+            char guessedLetter;
+            std::cout << "Введите букву: ";
+            std::cin >> guessedLetter;
+            guessedLetter = tolower(guessedLetter); // Преобразуем в нижний регистр
+
+            // Проверяем, если игрок уже угадал эту букву
+            if (currentWord.isLetterGuessed(guessedLetter)) {
+                std::cout << "Вы уже угадали эту букву!" << std::endl;
+                continue;
+            }
+
+            currentWord.guessLetter(guessedLetter);
+
+            // Проверка, есть ли буква в слове
+            if (currentWord.isLetterGuessed(guessedLetter)) {
+                std::cout << "Правильно!" << std::endl;
+            } else {
+                std::cout << "Неверно!" << std::endl;
+                attempts++;
+            }
+
+            // Проверить, отгадано ли слово
+            wordGuessed = currentWord.isGuessed();
+        }
+
+        std::cout << "Поздравляем! Вы отгадали слово!" << std::endl;
+    }
+
+    Dictionary& dictionary;
+};
+
+int main() {
+    setlocale(LC_ALL, "ru");
+
+    // Создаем словарь и игру
+    Dictionary dictionary("C:\\Users\\house\\OneDrive\\Desktop\\dictionary.txt");
+    Game game(dictionary);
+
+    // Запускаем игру
+    game.start();
+
+    return 0;
+}
